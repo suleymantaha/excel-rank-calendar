@@ -1,0 +1,12 @@
+Option Explicit
+
+Public Sub ShowRankCalendarForm()
+    frmRankCalendar.Show vbModeless
+End Sub
+Public Sub Auto_Open()
+    On Error GoTo AutoOpenFail
+    ShowRankCalendarForm
+    Exit Sub
+AutoOpenFail:
+    MsgBox "frmRankCalendar başlatılamadı. Hata: " & Err.Number & " - " & Err.Description, vbCritical
+End Sub
