@@ -1,0 +1,188 @@
+Option Explicit
+
+Public Sub BuildNamesForm()
+    Const fmMultiSelectMulti As Long = 1
+    
+    Dim vbProj As Object
+    Dim frm As Object
+    Dim designer As Object
+    Dim ctrl As Object
+    Dim codeLines As String
+    
+    Set vbProj = ThisWorkbook.VBProject
+    
+    EnsureDayCellClass vbProj
+    
+    On Error Resume Next
+    vbProj.VBComponents.Remove vbProj.VBComponents("frmNames")
+    On Error GoTo 0
+    
+    Set frm = vbProj.VBComponents.Add(3)
+    frm.Name = "frmNames"
+    frm.Properties("Caption") = "Liste ve Takvim"
+    frm.Properties("Width") = 420
+    frm.Properties("Height") = 360
+    frm.Properties("BackColor") = RGB(248, 248, 252)
+    
+    Set designer = frm.designer
+    
+    Set ctrl = designer.Controls.Add("Forms.ListBox.1", "lstNames", True)
+    With ctrl
+        .Left = 12
+        .Top = 12
+        .Width = 160
+        .Height = 260
+        .IntegralHeight = False
+        .MultiSelect = fmMultiSelectMulti
+    End With
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnAddDown", True)
+    ctrl.Caption = "Alt Alta Ekle"
+    ctrl.Left = 12
+    ctrl.Top = 280
+    ctrl.Width = 160
+    ctrl.Height = 26
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnAddCell", True)
+    ctrl.Caption = "Aynı Hücrede Alt Alta"
+    ctrl.Left = 12
+    ctrl.Top = 312
+    ctrl.Width = 160
+    ctrl.Height = 26
+    
+    Set ctrl = designer.Controls.Add("Forms.Frame.1", "fraCalendar", True)
+    ctrl.Left = 190
+    ctrl.Top = 10
+    ctrl.Width = 210
+    ctrl.Height = 300
+    ctrl.Caption = ""
+    ctrl.BackColor = RGB(244, 244, 250)
+    
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblMonth", True)
+    ctrl.Caption = ""
+    ctrl.Font.Bold = True
+    ctrl.Font.Size = 10
+    ctrl.ForeColor = RGB(74, 60, 155)
+    ctrl.Left = 200
+    ctrl.Top = 18
+    ctrl.Width = 150
+    ctrl.Height = 18
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnPrev", True)
+    ctrl.Caption = "<"
+    ctrl.Left = 344
+    ctrl.Top = 16
+    ctrl.Width = 22
+    ctrl.Height = 22
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnNext", True)
+    ctrl.Caption = ">"
+    ctrl.Left = 368
+    ctrl.Top = 16
+    ctrl.Width = 22
+    ctrl.Height = 22
+    
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblSelected", True)
+    ctrl.Caption = "Seçim Yok"
+    ctrl.Left = 200
+    ctrl.Top = 312
+    ctrl.Width = 200
+    ctrl.Height = 20
+    ctrl.ForeColor = RGB(60, 60, 60)
+    ctrl.Font.Size = 9
+    
+    Set ctrl = designer.Controls.Add("Forms.ComboBox.1", "cboMonth", True)
+    ctrl.Left = 200
+    ctrl.Top = 40
+    ctrl.Width = 100
+    ctrl.Style = fmStyleDropDownList
+    
+    Set ctrl = designer.Controls.Add("Forms.ComboBox.1", "cboYear", True)
+    ctrl.Left = 308
+    ctrl.Top = 40
+    ctrl.Width = 80
+    ctrl.Style = fmStyleDropDownList
+    
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblCol", True)
+    ctrl.Caption = "Sütun:"
+    ctrl.Left = 200
+    ctrl.Top = 280
+    ctrl.Width = 40
+    ctrl.Height = 14
+    
+    Set ctrl = designer.Controls.Add("Forms.TextBox.1", "txtColumn", True)
+    ctrl.Left = 240
+    ctrl.Top = 276
+    ctrl.Width = 40
+    
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblRow", True)
+    ctrl.Caption = "Satır:"
+    ctrl.Left = 290
+    ctrl.Top = 280
+    ctrl.Width = 40
+    ctrl.Height = 14
+    
+    Set ctrl = designer.Controls.Add("Forms.TextBox.1", "txtRow", True)
+    ctrl.Left = 330
+    ctrl.Top = 276
+    ctrl.Width = 50
+    
+    codeLines = ""
+    Dim codePath As String
+    codePath = ThisWorkbook.path & "\code.txt"
+    If Dir(codePath) = "" Then
+        MsgBox "code.txt bulunamadı. UserForm kodu yüklenemedi.", vbCritical
+        Exit Sub
+    End If
+
+    codeLines = ReadFileToString(codePath)
+
+    frm.CodeModule.AddFromString codeLines
+    
+    MsgBox "frmNames oluşturuldu. ShowNamesForm makrosu ile açabilirsin.", vbInformation
+End Sub
+
+Private Sub EnsureDayCellClass(ByVal vbProj As Object)
+     Dim cls As Object
+     On Error Resume Next
+     Set cls = vbProj.VBComponents("clsDayCell")
+     On Error GoTo 0
+    If cls Is Nothing Then
+        Set cls = vbProj.VBComponents.Add(2)
+        cls.Name = "clsDayCell"
+    Else
+        With cls.CodeModule
+            .DeleteLines 1, .CountOfLines
+        End With
+    End If
+    cls.CodeModule.AddFromString _
+        "Option Explicit" & vbCrLf & _
+        "Public WithEvents Cell As MSForms.Label" & vbCrLf & _
+        "Private mHost As frmNames" & vbCrLf & _
+        "Public Sub Init(ctrl As MSForms.Label, host As frmNames)" & vbCrLf & _
+        "    Set Cell = ctrl" & vbCrLf & _
+        "    Set mHost = host" & vbCrLf & _
+        "End Sub" & vbCrLf & _
+        "Private Sub Cell_Click()" & vbCrLf & _
+        "    mHost.HandleDayClick Cell" & vbCrLf & _
+        "End Sub" & vbCrLf & _
+        "Private Sub Cell_DblClick(ByVal Cancel As MSForms.ReturnBoolean)" & vbCrLf & _
+        "    mHost.HandleDayDoubleClick Cell" & vbCrLf & _
+        "End Sub"
+ End Sub
+
+Public Sub ShowNamesForm()
+    frmNames.Show vbModeless
+End Sub
+
+Private Function ReadFileToString(ByVal path As String) As String
+    Dim fso As Object
+    Dim ts As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set ts = fso.OpenTextFile(path, 1, False)
+    ReadFileToString = ts.ReadAll
+    ts.Close
+End Function
+
+
+
