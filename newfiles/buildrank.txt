@@ -1,0 +1,139 @@
+Public Sub BuildRankCalendarForm()
+    Const fmMultiSelectSingle As Long = 0
+    Dim vbProj As Object
+    Dim frm As Object
+    Dim designer As Object
+    Dim ctrl As Object
+    Dim codeLines As String
+    
+    Set vbProj = ThisWorkbook.VBProject
+
+    
+    On Error Resume Next
+    vbProj.VBComponents.Remove vbProj.VBComponents("frmRankCalendar")
+    On Error GoTo 0
+    
+    Set frm = vbProj.VBComponents.Add(3)
+    frm.name = "frmRankCalendar"
+    frm.Properties("Caption") = "Rütbe, Ad ve Takvim"
+    frm.Properties("Width") = 640
+    frm.Properties("Height") = 380
+    frm.Properties("BackColor") = RGB(247, 247, 251)
+    
+    Set designer = frm.designer
+    
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblEntriesTitle", True)
+    ctrl.Caption = "Rütbe | Ad-Soyad"
+    ctrl.Left = 12
+    ctrl.Top = 12
+    ctrl.Width = 328
+    ctrl.Height = 16
+    ctrl.Font.Bold = True
+    
+    Set ctrl = designer.Controls.Add("Forms.ListBox.1", "lstEntries", True)
+    With ctrl
+        .Left = 12
+        .Top = 28
+        .Width = 163.45
+        .Height = 211.9
+        .MultiSelect = 1 ' fmMultiSelectSimple
+    End With
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnReloadList", True)
+    ctrl.Caption = "Listeyi Yenile"
+    ctrl.Left = 12
+    ctrl.Top = 256
+    ctrl.Width = 156
+    ctrl.Height = 20
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnPlaceSameCell", True)
+    ctrl.Caption = "Aynı Hücrede Alt Alta"
+    ctrl.Left = 12
+    ctrl.Top = 282
+    ctrl.Width = 156
+    ctrl.Height = 20
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnPlaceSeparateCells", True)
+    ctrl.Caption = "Ayrı Hücrelere Alt Alta"
+    ctrl.Left = 12
+    ctrl.Top = 312
+    ctrl.Width = 156
+    ctrl.Height = 18
+    ctrl.Font.Bold = True
+    
+    ' Takvim alanı
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblCalendarTitle", True)
+    ctrl.Caption = "Takvim"
+    ctrl.Left = 228
+    ctrl.Top = 12
+    ctrl.Width = 120
+    ctrl.Height = 16
+    ctrl.Font.Bold = True
+    
+    Set ctrl = designer.Controls.Add("Forms.ComboBox.1", "cboMonth", True)
+    ctrl.Left = 180
+    ctrl.Top = 30
+    ctrl.Width = 110
+    ctrl.Height = 18
+    ctrl.Style = fmStyleDropDownList
+    
+    Set ctrl = designer.Controls.Add("Forms.ComboBox.1", "cboYear", True)
+    ctrl.Left = 300
+    ctrl.Top = 30
+    ctrl.Width = 110
+    ctrl.Height = 18
+    ctrl.Style = fmStyleDropDownList
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnPrevMonth", True)
+    ctrl.Caption = "<"
+    ctrl.Left = 180
+    ctrl.Top = 12
+    ctrl.Width = 24
+    ctrl.Height = 18.05
+    
+    Set ctrl = designer.Controls.Add("Forms.CommandButton.1", "btnNextMonth", True)
+    ctrl.Caption = ">"
+    ctrl.Left = 204
+    ctrl.Top = 12
+    ctrl.Width = 24
+    ctrl.Height = 18.05
+    
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblMonth", True)
+    ctrl.Caption = ""
+    ctrl.Left = 186
+    ctrl.Top = 48
+    ctrl.Width = 222
+    ctrl.Height = 18
+    ctrl.Font.Bold = True
+    ctrl.TextAlign = fmTextAlignCenter
+    
+    Set ctrl = designer.Controls.Add("Forms.Frame.1", "fraCalendar", True)
+    ctrl.Left = 186
+    ctrl.Top = 72
+    ctrl.Width = 222
+    ctrl.Height = 168
+    ctrl.Caption = ""
+    ctrl.BackColor = RGB(244, 244, 250)
+    
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblSelected", True)
+    ctrl.Caption = "Seçim Yok"
+    ctrl.Left = 186
+    ctrl.Top = 246
+    ctrl.Width = 222
+    ctrl.Height = 18
+    ctrl.TextAlign = fmTextAlignLeft
+    
+    ' Durum etiketi
+    Set ctrl = designer.Controls.Add("Forms.Label.1", "lblStatus", True)
+    ctrl.Caption = ""
+    ctrl.Left = 12
+    ctrl.Top = 360
+    ctrl.Width = 612
+    ctrl.Height = 16
+    ctrl.ForeColor = RGB(0, 102, 0)
+    
+
+    frm.CodeModule.AddFromString codeLines
+    
+    MsgBox "frmRankCalendar oluşturuldu. ShowRankCalendarForm makrosu ile açabilirsiniz.", vbInformation
+End Sub

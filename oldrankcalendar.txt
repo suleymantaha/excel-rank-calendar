@@ -1,0 +1,326 @@
+Option Explicit
+
+Private Const SHEET_NAME As String = "Sayfa1"
+Private Const RANK_COLUMN As Long = 1        ' A
+Private Const NAME_COLUMN As Long = 2        ' B
+Private Const RANK_START_ROW As Long = 1
+Private Const NAME_START_ROW As Long = 1
+Private Const DATE_COLUMN As Long = 3        ' C for calendar dates
+
+Private mDayCells(1 To 42) As clsDayCell
+Private mCurrentMonth As Date
+Private mSelectedDate As Date
+Private mSuppressMonthYear As Boolean
+
+Private Sub lstEntries_Click()
+
+End Sub
+
+Private Sub UserForm_Initialize()
+    LoadNameTable
+    SetupCalendar
+    InitialiseMonthYearSelectors Date
+    RenderMonth Date
+    lblSelected.Caption = "Seçim Yok"
+    lblStatus.Caption = ""
+End Sub
+
+Private Sub LoadNameTable()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    lstEntries.Clear
+    Set ws = ThisWorkbook.Worksheets(SHEET_NAME)
+    lastRow = ws.Cells(ws.Rows.Count, RANK_COLUMN).End(xlUp).Row
+    If lastRow < RANK_START_ROW Then Exit Sub
+    For i = RANK_START_ROW To lastRow
+        If Trim$(CStr(ws.Cells(i, RANK_COLUMN).value)) <> "" And _
+           Trim$(CStr(ws.Cells(i, NAME_COLUMN).value)) <> "" Then
+            lstEntries.AddItem ws.Cells(i, RANK_COLUMN).value & " | " & ws.Cells(i, NAME_COLUMN).value
+        End If
+    Next i
+    If lstEntries.ListCount > 0 Then lstEntries.ListIndex = 0
+End Sub
+
+Private Sub btnReloadList_Click()
+    LoadNameTable
+    ShowStatus "Liste yenilendi.", False
+End Sub
+
+Private Sub btnPlaceSameCell_Click()
+    Dim selections As Variant
+    Dim target As Range
+    If Not PrepareSelections(selections) Then Exit Sub
+    If ActiveCell Is Nothing Then
+        ShowStatus "Önce çalışma sayfasında hedef hücre seçin.", True
+        Exit Sub
+    End If
+    Set target = ActiveCell
+    target.value = Join(selections, vbLf)
+    target.WrapText = True
+    ShowStatus "Seçimler aynı hücrede alt alta yazıldı.", False
+    ClearSelections
+End Sub
+
+Private Sub btnPlaceSeparateCells_Click()
+    Dim selections As Variant
+    Dim target As Range
+    Dim i As Long
+    If Not PrepareSelections(selections) Then Exit Sub
+    If ActiveCell Is Nothing Then
+        ShowStatus "Önce çalışma sayfasında hedef hücre seçin.", True
+        Exit Sub
+    End If
+    Set target = ActiveCell
+    For i = LBound(selections) To UBound(selections)
+        target.Offset(i, 0).value = selections(i)
+    Next i
+    ShowStatus "Seçimler alt alta hücrelere yazıldı.", False
+    ClearSelections
+End Sub
+
+Private Function PrepareSelections(ByRef combined As Variant) As Boolean
+    Dim chosen As Collection
+    Dim i As Long
+    Dim raw As String
+    Set chosen = GetSelectedEntries()
+    If chosen.Count = 0 Then
+        ShowStatus "En az bir satır seçin.", True
+        Exit Function
+    End If
+    ReDim combined(0 To chosen.Count - 1)
+    For i = 1 To chosen.Count
+        raw = chosen(i)
+        combined(i - 1) = Trim$(Split(raw, "|")(0)) & " " & Trim$(Split(raw, "|")(1))
+    Next i
+    PrepareSelections = True
+End Function
+
+Private Function GetSelectedEntries() As Collection
+    Dim col As New Collection
+    Dim i As Long
+    For i = 0 To lstEntries.ListCount - 1
+        If lstEntries.Selected(i) Then col.Add lstEntries.List(i)
+    Next i
+    If col.Count = 0 And lstEntries.ListCount > 0 Then col.Add lstEntries.List(lstEntries.ListIndex)
+    Set GetSelectedEntries = col
+End Function
+
+Private Sub InitialiseMonthYearSelectors(ByVal sourceDate As Date)
+    Dim months As Variant
+    Dim yr As Long
+    months = Array("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", _
+                    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık")
+    cboMonth.List = months
+    cboYear.Clear
+    For yr = Year(sourceDate) To Year(sourceDate) + 10
+        cboYear.AddItem CStr(yr)
+    Next yr
+    mSuppressMonthYear = True
+    cboMonth.ListIndex = Month(sourceDate) - 1
+    cboYear.value = CStr(Year(sourceDate))
+    mSuppressMonthYear = False
+End Sub
+
+Private Sub SetupCalendar()
+    Dim lbl As MSForms.Label
+    Dim i As Long, c As Long
+    Dim baseLeft As Single, baseTop As Single, rowSpacing As Single
+    baseLeft = 12
+    baseTop = 34
+    rowSpacing = 22
+    For c = 0 To 6
+        Set lbl = fraCalendar.Controls.Add("Forms.Label.1", "lblHead" & c, True)
+        With lbl
+            .Caption = Format(DateSerial(2024, 1, 1 + c), "ddd")
+            .Left = baseLeft + c * 28
+            .Top = 12
+            .Width = 28
+            .Height = 18
+            .BackColor = RGB(74, 60, 155)
+            .ForeColor = vbWhite
+            .Font.Size = 8
+            .Font.Bold = True
+            .TextAlign = fmTextAlignCenter
+        End With
+    Next c
+    For i = 1 To 42
+        Set lbl = fraCalendar.Controls.Add("Forms.Label.1", "lblDay" & i, True)
+        With lbl
+            .Width = 28
+            .Height = 22
+            .Left = baseLeft + ((i - 1) Mod 7) * 28
+            .Top = baseTop + ((i - 1) \ 7) * rowSpacing
+            .BackColor = RGB(245, 245, 250)
+            .ForeColor = RGB(50, 50, 50)
+            .BorderStyle = fmBorderStyleSingle
+            .TextAlign = fmTextAlignCenter
+            .Font.Size = 9
+        End With
+        Set mDayCells(i) = New clsDayCell
+        mDayCells(i).Init lbl, Me
+    Next i
+End Sub
+
+Private Sub cboMonth_Change()
+    If mSuppressMonthYear Then Exit Sub
+    If cboMonth.ListIndex < 0 Then Exit Sub
+    If Len(cboYear.value) = 0 Then Exit Sub
+    RenderMonth DateSerial(CLng(cboYear.value), cboMonth.ListIndex + 1, 1)
+End Sub
+
+Private Sub cboYear_Change()
+    If mSuppressMonthYear Then Exit Sub
+    If cboMonth.ListIndex < 0 Then Exit Sub
+    If Not IsNumeric(cboYear.value) Then Exit Sub
+    RenderMonth DateSerial(CLng(cboYear.value), cboMonth.ListIndex + 1, 1)
+End Sub
+
+Private Sub btnPrevMonth_Click()
+    RenderMonth DateAdd("m", -1, mCurrentMonth)
+End Sub
+
+Private Sub btnNextMonth_Click()
+    RenderMonth DateAdd("m", 1, mCurrentMonth)
+End Sub
+
+Private Sub RenderMonth(ByVal startDate As Date)
+    Dim firstOffset As Long, daysInMonth As Long
+    Dim i As Long, d As Long
+    mCurrentMonth = DateSerial(Year(startDate), Month(startDate), 1)
+    mSuppressMonthYear = True
+    cboMonth.ListIndex = Month(mCurrentMonth) - 1
+    cboYear.value = CStr(Year(mCurrentMonth))
+    mSuppressMonthYear = False
+    lblMonth.Caption = UCase$(Format(mCurrentMonth, "mmmm yyyy"))
+    mSelectedDate = 0
+    lblSelected.Caption = "Seçim Yok"
+    firstOffset = Weekday(mCurrentMonth, vbMonday) - 1
+    daysInMonth = Day(DateAdd("d", -1, DateSerial(Year(mCurrentMonth), Month(mCurrentMonth) + 1, 1)))
+    For i = 1 To 42
+        With mDayCells(i).Cell
+            .Caption = ""
+            .Tag = ""
+            .BackColor = RGB(245, 245, 250)
+            .ForeColor = RGB(50, 50, 50)
+        End With
+    Next i
+    For d = 1 To daysInMonth
+        i = firstOffset + d
+        With mDayCells(i).Cell
+            .Caption = d
+            .Tag = DateSerial(Year(mCurrentMonth), Month(mCurrentMonth), d)
+        End With
+    Next d
+End Sub
+
+Public Sub HandleDayClick(ByVal lbl As MSForms.Label)
+    Dim targetDate As Date
+    Dim i As Long
+    If lbl.Tag = "" Then Exit Sub
+    targetDate = CDate(lbl.Tag)
+    mSelectedDate = targetDate
+    For i = 1 To 42
+        With mDayCells(i).Cell
+            If .Tag = "" Then
+                .BackColor = RGB(245, 245, 250)
+                .ForeColor = RGB(50, 50, 50)
+            ElseIf CDate(.Tag) = targetDate Then
+                .BackColor = RGB(74, 60, 155)
+                .ForeColor = vbWhite
+            Else
+                .BackColor = RGB(245, 245, 250)
+                .ForeColor = RGB(50, 50, 50)
+            End If
+        End With
+    Next i
+    lblSelected.Caption = Format(targetDate, "dd MMMM yyyy")
+End Sub
+
+Public Sub HandleDayDoubleClick(ByVal lbl As MSForms.Label)
+    HandleDayClick lbl
+    If mSelectedDate = 0 Then Exit Sub
+    If ActiveCell Is Nothing Then
+        ShowStatus "Tarih yazmak için önce çalışma sayfasında hedef hücre seçin.", True
+        Exit Sub
+    End If
+    ActiveCell.value = mSelectedDate
+    ShowStatus "Tarih " & Format(mSelectedDate, "dd.MM.yyyy") & " seçili hücreye yazıldı.", False
+End Sub
+
+Private Function ReadColumnValuesSafe(ByVal columnIndex As Long, ByVal startRow As Long) As Variant
+    On Error GoTo Fail
+    ReadColumnValuesSafe = ReadColumnValues(columnIndex, startRow)
+    Exit Function
+Fail:
+    ReadColumnValuesSafe = Empty
+End Function
+
+Private Function ReadColumnValues(ByVal columnIndex As Long, ByVal startRow As Long) As Variant
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim rng As Range
+    Dim data As Variant
+    Dim results As Collection
+    Dim i As Long
+    Set ws = ThisWorkbook.Worksheets(SHEET_NAME)
+    lastRow = ws.Cells(ws.Rows.Count, columnIndex).End(xlUp).Row
+    If lastRow < startRow Then Exit Function
+    Set rng = ws.Range(ws.Cells(startRow, columnIndex), ws.Cells(lastRow, columnIndex))
+    If rng.Cells.Count = 1 Then
+        If Trim$(CStr(rng.value)) = "" Then Exit Function
+        ReadColumnValues = Array(Trim$(CStr(rng.value)))
+        Exit Function
+    End If
+    data = rng.value
+    Set results = New Collection
+    For i = 1 To UBound(data, 1)
+        If Trim$(CStr(data(i, 1))) <> "" Then results.Add Trim$(CStr(data(i, 1)))
+    Next i
+    If results.Count = 0 Then Exit Function
+    Dim arr() As String
+    ReDim arr(0 To results.Count - 1)
+    For i = 1 To results.Count
+        arr(i - 1) = results(i)
+    Next i
+    ReadColumnValues = arr
+End Function
+
+Private Sub ShowStatus(ByVal message As String, ByVal isError As Boolean)
+    lblStatus.Caption = message
+    If isError Then
+        lblStatus.ForeColor = RGB(192, 0, 0)
+    Else
+        lblStatus.ForeColor = RGB(0, 102, 0)
+    End If
+End Sub
+
+Private Sub ClearSelections()
+    Dim i As Long
+    For i = 0 To lstEntries.ListCount - 1
+        lstEntries.Selected(i) = False
+    Next i
+    On Error Resume Next
+    lstEntries.ListIndex = -1
+    On Error GoTo 0
+End Sub
+
+Private Sub UserForm_MouseWheel(ByVal Page As Boolean, ByVal Count As Long)
+    AdjustListScroll lstEntries, Page, Count
+End Sub
+
+Private Sub AdjustListScroll(lb As MSForms.ListBox, ByVal Page As Boolean, ByVal Count As Long)
+    Dim delta As Long
+    Dim newIndex As Long
+    If lb.ListCount = 0 Then Exit Sub
+    delta = Sgn(Count) * IIf(Page, 5, 1)
+    newIndex = lb.TopIndex - delta
+    If newIndex < 0 Then newIndex = 0
+    If newIndex > lb.ListCount - 1 Then newIndex = lb.ListCount - 1
+    lb.TopIndex = newIndex
+End Sub
+
+
+
+
+

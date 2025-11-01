@@ -1,0 +1,17 @@
+Option Explicit
+
+Public WithEvents Cell As MSForms.Label
+Private mHost As frmRankCalendar
+
+Public Sub Init(ctrl As MSForms.Label, host As frmRankCalendar)
+    Set Cell = ctrl
+    Set mHost = host
+End Sub
+
+Private Sub Cell_Click()
+    mHost.HandleDayClick Cell
+End Sub
+
+Private Sub Cell_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
+    mHost.HandleDayDoubleClick Cell
+End Sub
