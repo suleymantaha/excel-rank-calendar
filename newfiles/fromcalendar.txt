@@ -267,7 +267,7 @@ Private Function ReadColumnValues(ByVal columnIndex As Long, ByVal startRow As L
     lastRow = ws.Cells(ws.Rows.Count, columnIndex).End(xlUp).Row
     If lastRow < startRow Then Exit Function
     Set rng = ws.Range(ws.Cells(startRow, columnIndex), ws.Cells(lastRow, columnIndex))
-    If rng.Cells.Count == 1 Then
+    If rng.Cells.Count = 1 Then
         If Trim$(CStr(rng.value)) = "" Then Exit Function
         ReadColumnValues = Array(Trim$(CStr(rng.value)))
         Exit Function
